@@ -9,13 +9,14 @@ interface VitaminPluginOptions {
 }
 
 export default function vitaminPlugin({ ssr = true, srcRoutesDir = 'src/routes', buildDir = 'dist' }: VitaminPluginOptions = {}): Plugin {
+  const serverIncludePattern = 'server.{js,ts,jsx,tsx}';
+  const vercelIncludePattern = 'vercel.{js,ts,jsx,tsx}';
   const routesIncludePattern = '**/{page,layout}.{js,ts,jsx,tsx}';
   const routesExcludePatterns = ['node_modules/**', 'dist/**'];
   const routesFileFilter = createFilter(routesIncludePattern, routesExcludePatterns);
 
-  const serverIncludePattern = 'server.{js,ts,jsx,tsx}';
-
   const serverFiles = fg.globSync(serverIncludePattern, { cwd: dirname(__filename), absolute: true });
+  const vercelFiles = fg.globSync(vercelIncludePattern, { cwd: dirname(__filename), absolute: true });
   const routeFiles = fg.globSync(routesIncludePattern, {
     ignore: routesExcludePatterns,
     cwd: srcRoutesDir,
@@ -34,7 +35,7 @@ export default function vitaminPlugin({ ssr = true, srcRoutesDir = 'src/routes',
           ssr,
           outDir: buildDir, // Output directory
           rollupOptions: {
-            input: [...routeFiles, ...serverFiles],
+            input: [...routeFiles, ...serverFiles, ...vercelFiles],
             output: {
               // Preserve directory structure for route files
               entryFileNames: (chunkInfo) => {
@@ -51,7 +52,7 @@ export default function vitaminPlugin({ ssr = true, srcRoutesDir = 'src/routes',
                   return routePath;
                 }
 
-                if (/server\.(js|ts|jsx|tsx)$/.test(chunkInfo.facadeModuleId || '')) {
+                if (/server\.(js|ts|jsx|tsx)$/.test(chunkInfo.facadeModuleId || '') || /vercel\.(js|ts|jsx|tsx)$/.test(chunkInfo.facadeModuleId || '')) {
                   const relativePath = resolve(dirname(__filename));
                   const routePath = filePath
                     .replace(`${relativePath}/`, '') // Output under root directory
