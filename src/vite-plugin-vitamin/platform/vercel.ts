@@ -68,8 +68,8 @@ export const usingVercel: UsePlatformFunction = () => {
     routesDir: 'api',
     transformEntryName(name) {
       return name
-        .replace(/([^/]+)\/page\.js$/, '$1.js')
-        .replace(/\/\[([^\]]+)\]\/page\.js$/, '/[$1].js');
+      // .replace(/([^/]+)\/page\.js$/, '$1.js')
+      // .replace(/\/\[([^\]]+)\]\/page\.js$/, '/[$1].js');
     },
     transformBundleName(name) {
       return name.replace(/:(\w+)/g, '[$1]');
@@ -96,6 +96,17 @@ export const usingVercel: UsePlatformFunction = () => {
 
       // writeFileSync('vercel.json', JSON.stringify(vercelJson, null, 2));
       // writeFileSync(`${platform?.buildDir}/vercel.json`, JSON.stringify(vercelJson, null, 2));
+
+      for (const f of cacheApis.map(f => platform.transformBundleName(f
+        .replace(platform.srcApisDir || '', join(platform.buildDir || '', 'api'))
+        .replace(/page\.(ts|jsx|tsx)$/, 'index.js')
+      ))) {
+        writeFileSync(f, `import handler from './page.js';
+
+export default async function (req, res) {
+  await handler(req, res);
+}`);
+      }
 
       cacheApis.forEach(f => unlinkSync(f));
       rmSync(join('src', 'build'), { recursive: true, force: true });
