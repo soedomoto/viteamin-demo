@@ -67,7 +67,7 @@ export const usingVercel: UsePlatformFunction = () => {
     buildDir: 'dist',
     routesDir: 'api',
     transformPathName(name) {
-      return name; //.replace(/:(\w+)/g, '[$1]');
+      return name.replace(/:(\w+)/g, '[$1]').replace(/\/\[([^\]]+)\]\/index\.js$/, '/[$1].js');
     },
     buildRollupInput(routeFiles, srcRoutesDir) {
       cacheApis = buildCacheApiDir(routeFiles, srcRoutesDir);
