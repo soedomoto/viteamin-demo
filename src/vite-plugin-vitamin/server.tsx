@@ -16,11 +16,11 @@ const appDir = join(__dirname, 'routes');
 
 const streamResponse = (_req: Request, res: Response, el: JSX.Element) => {
   res.setHeader('Content-Type', 'text/html');
-  
+
   const { pipe, abort } = renderToPipeableStream(el);
   const timeoutId = setTimeout(() => abort(), 10000);
   pipe(res);
-  
+
   return () => clearTimeout(timeoutId);
 };
 
@@ -59,7 +59,7 @@ async function loadRoutes(
     } else if (item === 'page.js') {
       const pageModule = await import(`file://${fullPath}`);
       const PageComponent: PageComponentType<object> = pageModule.default;
-      
+
       const routePath = basePath === '' ? '/' : basePath;
 
       const routeHandler = (req: Request, res: Response) => {
@@ -73,9 +73,9 @@ async function loadRoutes(
           rawBody: req.body as string | Buffer | undefined, // Requires body-parser middleware with `rawBody` enabled
           ip: req.ip,
           getHeader(name: string): string | string[] | undefined {
-              return req.headers[name.toLowerCase()];
+            return req.headers[name.toLowerCase()];
           }
-      }
+        }
 
         let metadata: Metadata | undefined = {};
         for (const e of Object.keys(pageModule)) {

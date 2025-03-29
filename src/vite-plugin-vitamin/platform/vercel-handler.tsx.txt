@@ -1,0 +1,55 @@
+import { Metadata, PageComponent as PageComponentType, VitaminRequest } from '@/vite-plugin-vitamin/page';
+import { VercelRequest, VercelResponse } from '@vercel/node';
+import { JSX } from 'react';
+import { renderToPipeableStream } from 'react-dom/server';
+
+const streamResponse = (_req: VercelRequest, res: VercelResponse, el: JSX.Element) => {
+  res.setHeader('Content-Type', 'text/html');
+
+  const { pipe, abort } = renderToPipeableStream(el);
+  const timeoutId = setTimeout(() => abort(), 10000);
+  pipe(res);
+
+  return () => clearTimeout(timeoutId);
+};
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const forwardedFor = req.headers['x-forwarded-for'];
+  let clientIp: string | undefined;
+
+  if (Array.isArray(forwardedFor)) {
+    clientIp = forwardedFor[0];
+  } else if (typeof forwardedFor === 'string') {
+    clientIp = forwardedFor.split(',')[0].trim();
+  } else {
+    clientIp = 'unknown';
+  }
+
+  const vreq: VitaminRequest = {
+    method: req.method || 'GET',
+    url: req.url || '',
+    headers: req.headers,
+    query: req.query as Record<string, string>,
+    params: req.query as Record<string, string>,
+    body: req.body,
+    rawBody: req.body as string | Buffer | undefined,
+    ip: clientIp,
+    getHeader(name: string): string | string[] | undefined {
+      return req.headers[name.toLowerCase()];
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pageModule: Record<any, any> = await import('@/routes/page');
+  const PageComponent: PageComponentType<object> = pageModule.default;
+
+  let metadata: Metadata | undefined = {};
+  for (const e of Object.keys(pageModule)) {
+    if (e === 'default') continue;
+    if (pageModule[e]?.constructor?.name === 'Metadata') {
+      metadata = pageModule[e].generate?.(vreq, undefined);
+    }
+  }
+
+  streamResponse(req, res, <PageComponent request={vreq} metadata={metadata} />);
+}

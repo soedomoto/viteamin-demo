@@ -1,22 +1,25 @@
 import fg from 'fast-glob';
 import { dirname, resolve } from 'path';
 import { createFilter, Plugin } from 'vite';
+import { Platform } from './platform';
+import { usingExpress } from './platform/express';
 
 interface VitaminPluginOptions {
   ssr?: boolean;
   srcRoutesDir?: string;
-  buildDir?: string;
+  target?: Platform;
 }
 
-export default function vitaminPlugin({ ssr = true, srcRoutesDir = 'src/routes', buildDir = 'dist' }: VitaminPluginOptions = {}): Plugin {
-  const serverIncludePattern = 'server.{js,ts,jsx,tsx}';
-  const vercelIncludePattern = 'vercel.{js,ts,jsx,tsx}';
+export default function vitaminPlugin(options: VitaminPluginOptions = {}): Plugin {
+  const { ssr = true, srcRoutesDir = 'src/routes', target = usingExpress() } = options;
+  const { srcApisDir = srcRoutesDir, buildDir, routesDir: buildRoutesDir, transformPathName, buildRollupInput, buildEnd } = target;
+
+  // const serverIncludePattern = 'server.{js,ts,jsx,tsx}';
   const routesIncludePattern = '**/{page,layout}.{js,ts,jsx,tsx}';
   const routesExcludePatterns = ['node_modules/**', 'dist/**'];
   const routesFileFilter = createFilter(routesIncludePattern, routesExcludePatterns);
 
-  const serverFiles = fg.globSync(serverIncludePattern, { cwd: dirname(__filename), absolute: true });
-  const vercelFiles = fg.globSync(vercelIncludePattern, { cwd: dirname(__filename), absolute: true });
+  // const serverFiles = fg.globSync(serverIncludePattern, { cwd: dirname(__filename), absolute: true });
   const routeFiles = fg.globSync(routesIncludePattern, {
     ignore: routesExcludePatterns,
     cwd: srcRoutesDir,
@@ -28,35 +31,33 @@ export default function vitaminPlugin({ ssr = true, srcRoutesDir = 'src/routes',
 
   return {
     name: 'vite-plugin-vitamin',
-
     config() {
       return {
         build: {
           ssr,
-          outDir: buildDir, // Output directory
+          outDir: buildDir,
           rollupOptions: {
-            input: [...routeFiles, ...serverFiles, ...vercelFiles],
+            input: [...buildRollupInput(routeFiles, srcRoutesDir),],
             output: {
-              // Preserve directory structure for route files
               entryFileNames: (chunkInfo) => {
                 const filePath = chunkInfo.facadeModuleId;
                 if (!filePath) return '';
 
                 if (routesFileFilter(chunkInfo.facadeModuleId)) {
-                  const relativePath = resolve(srcRoutesDir);
+                  const relativePath = resolve(srcApisDir);
                   const routePath = filePath
-                    .replace(relativePath, 'routes') // Output under routes directory
-                    .replace(/\[([^\]]+)\]/g, ':$1')
-                    .replace(/\.(ts|jsx|tsx)$/, '.js'); // Convert to .js
+                    .replace(relativePath, buildRoutesDir)
+                    .replace(/\.(ts|jsx|tsx)$/, '.js')
+                    .replace(/\[([^\]]+)\]/g, ':$1');
 
                   return routePath;
                 }
 
-                if (/server\.(js|ts|jsx|tsx)$/.test(chunkInfo.facadeModuleId || '') || /vercel\.(js|ts|jsx|tsx)$/.test(chunkInfo.facadeModuleId || '')) {
+                if (/server\.(js|ts|jsx|tsx)$/.test(chunkInfo.facadeModuleId || '')) {
                   const relativePath = resolve(dirname(__filename));
                   const routePath = filePath
-                    .replace(`${relativePath}/`, '') // Output under root directory
-                    .replace(/\.(ts|jsx|tsx)$/, '.js'); // Convert to .js
+                    .replace(`${relativePath}/`, '')
+                    .replace(/\.(ts|jsx|tsx)$/, '.js');
                   return routePath;
                 }
 
@@ -81,30 +82,28 @@ export default function vitaminPlugin({ ssr = true, srcRoutesDir = 'src/routes',
       }
     },
 
-    // Optional: Analyze imports during transform
     transform(code, id) {
       if (routesFileFilter(id)) {
         // You could parse imports here with a tool like `es-module-lexer`
         // For simplicity, we'll rely on Rollup's manualChunks
+
         return code;
       }
     },
 
-    // Finalize output
     generateBundle(_options, bundle) {
-      // Ensure route files maintain structure and shared chunks are hashed
       for (const [, chunk] of Object.entries(bundle)) {
         if (chunk.type === 'chunk' && routesFileFilter(chunk.facadeModuleId)) {
-          const originalPath = chunk.facadeModuleId;
-          if (!originalPath) return;
+          const fileName = chunk.fileName;
+          if (!fileName) return;
 
-          const relativePath = originalPath
-            .replace(resolve(srcRoutesDir), 'routes')
-            .replace(/\[([^\]]+)\]/g, ':$1');
-          const newFileName = `${relativePath.replace(/\.(ts|jsx|tsx)$/, '.js')}`;
-          chunk.fileName = newFileName;
+          chunk.fileName = transformPathName(fileName);
         }
       }
+    },
+
+    closeBundle() {
+      buildEnd?.();
     },
   };
 }
