@@ -47,7 +47,7 @@ export default function vitaminPlugin(options: VitaminPluginOptions = {}): Plugi
                   const relativePath = resolve(srcApisDir);
                   const routePath = filePath
                     .replace(relativePath, buildRoutesDir)
-                    .replace(/\.(ts|jsx|tsx)$/, '.js')
+                    .replace(/page\.(ts|jsx|tsx)$/, 'index.js')
                     .replace(/\[([^\]]+)\]/g, ':$1');
 
                   return routePath;
