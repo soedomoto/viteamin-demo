@@ -66,31 +66,36 @@ export const usingVercel: UsePlatformFunction = () => {
     srcApisDir: join('src', 'build', 'cache', 'api'),
     buildDir: 'dist',
     routesDir: 'api',
-    transformPathName(name) {
-      return name.replace(/:(\w+)/g, '[$1]').replace(/\/\[([^\]]+)\]\/index\.js$/, '/[$1].js');
+    transformEntryName(name) {
+      return name
+        .replace(/([^/]+)\/page\.js$/, '$1.js')
+        .replace(/\/\[([^\]]+)\]\/page\.js$/, '/[$1].js');
+    },
+    transformBundleName(name) {
+      return name.replace(/:(\w+)/g, '[$1]');
     },
     buildRollupInput(routeFiles, srcRoutesDir) {
       cacheApis = buildCacheApiDir(routeFiles, srcRoutesDir);
       return cacheApis;
     },
     buildEnd() {
-      const vercelJson = {
-        "version": 2,
-        "routes": cacheApis.map(f => {
-          const src = f
-            .replace(platform.srcApisDir || '', '')
-            .replace(/\/page\.(js|jsx|ts|tsx)$/, '')
-            .replace(/\/:\w+/g, "/*") || '/';
-          const dest = f
-            .replace(platform.srcApisDir || '', 'api')
-            .replace(/page\.(js|jsx|ts|tsx)$/, 'index.js')
+      // const vercelJson = {
+      //   "version": 2,
+      //   "routes": cacheApis.map(f => {
+      //     const src = f
+      //       .replace(platform.srcApisDir || '', '')
+      //       .replace(/\/page\.(js|jsx|ts|tsx)$/, '')
+      //       .replace(/\/:\w+/g, "/*") || '/';
+      //     const dest = f
+      //       .replace(platform.srcApisDir || '', 'api')
+      //       .replace(/page\.(js|jsx|ts|tsx)$/, 'index.js')
 
-          return { src, dest }
-        })
-      };
+      //     return { src, dest }
+      //   })
+      // };
 
-      writeFileSync('vercel.json', JSON.stringify(vercelJson, null, 2));
-      writeFileSync(`${platform?.buildDir}/vercel.json`, JSON.stringify(vercelJson, null, 2));
+      // writeFileSync('vercel.json', JSON.stringify(vercelJson, null, 2));
+      // writeFileSync(`${platform?.buildDir}/vercel.json`, JSON.stringify(vercelJson, null, 2));
 
       cacheApis.forEach(f => unlinkSync(f));
       rmSync(join('src', 'build'), { recursive: true, force: true });

@@ -5,7 +5,10 @@ export const usingExpress: UsePlatformFunction = () => {
     srcApisDir: 'src/routes',
     buildDir: 'dist',
     routesDir: 'routes',
-    transformPathName(name) {
+    transformEntryName(name) {
+      return name;
+    },
+    transformBundleName(name) {
       return name;
     },
     buildRollupInput(routeFiles) {

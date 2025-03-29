@@ -12,7 +12,7 @@ interface VitaminPluginOptions {
 
 export default function vitaminPlugin(options: VitaminPluginOptions = {}): Plugin {
   const { ssr = true, srcRoutesDir = 'src/routes', target = usingExpress() } = options;
-  const { srcApisDir = srcRoutesDir, buildDir, routesDir: buildRoutesDir, transformPathName, buildRollupInput, buildEnd } = target;
+  const { srcApisDir = srcRoutesDir, buildDir, routesDir: buildRoutesDir, transformEntryName, transformBundleName: transformPathName, buildRollupInput, buildEnd } = target;
 
   // const serverIncludePattern = 'server.{js,ts,jsx,tsx}';
   const routesIncludePattern = '**/{page,layout}.{js,ts,jsx,tsx}';
@@ -45,10 +45,12 @@ export default function vitaminPlugin(options: VitaminPluginOptions = {}): Plugi
 
                 if (routesFileFilter(chunkInfo.facadeModuleId)) {
                   const relativePath = resolve(srcApisDir);
-                  const routePath = filePath
-                    .replace(relativePath, buildRoutesDir)
-                    .replace(/page\.(ts|jsx|tsx)$/, 'index.js')
-                    .replace(/\[([^\]]+)\]/g, ':$1');
+                  const routePath = transformEntryName(
+                    filePath
+                      .replace(relativePath, buildRoutesDir)
+                      .replace(/page\.(ts|jsx|tsx)$/, 'page.js')
+                      .replace(/\[([^\]]+)\]/g, ':$1')
+                  );
 
                   return routePath;
                 }
